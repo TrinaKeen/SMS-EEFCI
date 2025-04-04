@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Student {
+  id                          Int        @id @default(autoincrement())
+  studentNumber                String     @unique
+  firstName                   String
+  middleName                  String?
+  lastName                    String
+  dob                         DateTime
+  gender                      String
+  age                         Int
+  nationality                 String
+  placeOfBirth                String
+  email                       String     @unique
+  phoneNumber                 String
+  homeAddress                 String
+  emergencyContactName        String
+  emergencyContactPhoneNumber String
+  emergencyContactRelationship String
+  previousSchools             String?
+  yearOfGraduation            Int?
+  gpa                         Float?
+  studentApplication          StudentApplication[]
+  studentCourse               StudentCourse[]
+  documentUpload              DocumentUpload[]
+}
+
+model Admin {
+  id              Int        @id @default(autoincrement())
+  employeeNumber  String     @unique
+  firstName       String
+  middleName      String?
+  lastName        String
+  email           String     @unique
+  phoneNumber     String
+  studentApplication StudentApplication[]
+}
+
+model Program {
+  id            Int       @id @default(autoincrement())
+  programName   String
+  programDescription String?
+  duration      Int
+  tuitionFee    Float
+  studentApplication StudentApplication[]
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  username  String    @unique
+  email     String    @unique  // Added email field
+  password  String
+  role      String    @default("student")  // Could be student, instructor, admin
+  createdAt DateTime @default(now())
+  notifications Notification[]  // Add opposite relation here
+}
+
+model StudentApplication {
+  id                Int       @id @default(autoincrement())
+  studentId         Int
+  programId         Int
+  status            String    @default("pending")  // Pending, Approved, Rejected
+  submissionDate    DateTime @default(now())
+  rejectionReason   String?
+  approvalDate      DateTime?
+  adminId           Int?     // The admin who approved the application
+  student           Student  @relation(fields: [studentId], references: [id])
+  admin             Admin?   @relation(fields: [adminId], references: [id])
+  program           Program  @relation(fields: [programId], references: [id])
+}
+
+model DocumentUpload {
+  id          Int        @id @default(autoincrement())
+  studentId   Int
+  documentType String
+  fileUrl     String
+  uploadDate  DateTime   @default(now())
+  student     Student    @relation(fields: [studentId], references: [id])
+}
+
+model Instructor {
+  id              Int       @id @default(autoincrement())
+  employeeNumber  String    @unique
+  firstName       String
+  middleName      String?
+  lastName        String
+  department      String?
+  email           String    @unique
+  phoneNumber     String
+  courses         Course[]  // Add opposite relation here
+  schedules       Schedule[] // Add opposite relation to Schedule
+}
+
+model Course {
+  id               Int         @id @default(autoincrement())
+  courseCode       String      @unique
+  courseName       String
+  courseDescription String?
+  instructorId     Int
+  instructor       Instructor  @relation(fields: [instructorId], references: [id])
+  studentCourse    StudentCourse[]
+  schedules        Schedule[]  // Add opposite relation here
+}
+
+model StudentCourse {
+  id         Int      @id @default(autoincrement())
+  studentId  Int
+  courseId   Int
+  finalGrade Float?
+  student    Student  @relation(fields: [studentId], references: [id])
+  course     Course   @relation(fields: [courseId], references: [id])
+}
+
+model Schedule {
+  id          Int      @id @default(autoincrement())
+  courseId    Int
+  instructorId Int
+  startTime   DateTime
+  endTime     DateTime
+  course      Course   @relation(fields: [courseId], references: [id])
+  instructor  Instructor @relation(fields: [instructorId], references: [id])
+}
+
+model Notification {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  message    String
+  timestamp  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+}
