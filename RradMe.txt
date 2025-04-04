@@ -1,0 +1,7 @@
+Need to install before running the program.
+
+npm install 
+npm install @prisma/client
+npm install prisma --save-dev
+npx prisma migrate deploy
+npx prisma generate
