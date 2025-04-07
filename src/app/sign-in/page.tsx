@@ -7,12 +7,12 @@ const SignInPage = () => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const [success, setSuccess] = useState<string>("");
+  const [success, setSuccess] = useState<string>('');
   const router = useRouter(); // Use it here
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-  
+
     const response = await fetch('/api/login', {
       method: 'POST',
       headers: {
@@ -20,18 +20,20 @@ const SignInPage = () => {
       },
       body: JSON.stringify({ email, password }),
     });
-  
+
     const data = await response.json();
-  
+
     if (response.ok) {
-      // Save the token in localStorage or cookie
+      // Save the token in localStorage
       localStorage.setItem('token', data.token);
+
       // Set success message
       setSuccess('Login successful! Redirecting...');
-      setError('');  // Clear any previous error messages
-      // Redirect to the homepage or dashboard
+      setError(''); // Clear any previous error messages
+
+      // Redirect to the /admin/dashboard page
       setTimeout(() => {
-        router.push('/');
+        router.push('/admin');
       }, 2000); // Wait 2 seconds before redirecting
     } else {
       // Handling different error cases based on response
@@ -44,8 +46,6 @@ const SignInPage = () => {
       }
       setSuccess('');  // Clear any previous success message
     }
- 
-  
   };
 
   return (
@@ -53,8 +53,8 @@ const SignInPage = () => {
       <h1 className={styles['login-form__heading']}>Login</h1>
 
       {/* Displaying success or error messages */}
-    {error && <p className={styles['error']}>{error}</p>}
-    {success && <p className={styles['success']}>{success}</p>}  {/* Add this line for success message */}
+      {error && <p className={styles['error']}>{error}</p>}
+      {success && <p className={styles['success']}>{success}</p>}  {/* Success message */}
 
       <form onSubmit={handleSubmit} className={styles['form']}>
         <div>
