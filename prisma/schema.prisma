@@ -91,7 +91,7 @@ model Admin {
 
 model Program {
   id                 Int                   @id @default(autoincrement())
-  programCode        String                @unique // Ensure the program code is unique
+  programCode        String                // Ensure the program code is unique
   programName        String                // The name of the program (e.g., "Computer Science")
   programDescription String?               // Description of the program (optional)
   duration           Int                   // Duration of the program in months or years

@@ -1,81 +1,107 @@
 import { PrismaClient } from '@prisma/client';
+import formidable, { IncomingForm } from 'formidable';
+import fs from 'fs';
+import { generateStudentNumber } from '../lib/generateStudentNumber';
 
 const prisma = new PrismaClient();
 
+// Disable Next.js default body parsing
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default async function handler(req, res) {
   if (req.method === 'GET') {
-    // Fetch pending student applications
     try {
       const pendingApplications = await prisma.studentApplication.findMany({
-        where: {
-          status: 'pending',
-        },
-        include: {
-          student: true, // Include student data for each application
-          program: true, // Include program information
-        },
+        where: { status: 'pending' },
+        include: { student: true, program: true },
       });
-      res.status(200).json(pendingApplications);
+      return res.status(200).json(pendingApplications);
     } catch (error) {
-      res.status(500).json({ error: 'Error fetching student applications' });
+      return res.status(500).json({ error: 'Error fetching student applications' });
     }
   }
 
   if (req.method === 'POST') {
-    // Create a new student application with a unique student number
-    try {
-      const { firstName, middleName, lastName, dob, gender, age, nationality, placeOfBirth, email, phoneNumber, homeAddress, emergencyContactName, emergencyContactPhoneNumber, emergencyContactRelationship, previousSchools, yearOfGraduation, gpa, programId } = req.body;
+    const form = new IncomingForm({ multiples: true, uploadDir: '/uploads/', keepExtensions: true });
 
-      // Get the last student number
-      const lastStudent = await prisma.student.findFirst({
-        orderBy: { id: 'desc' },
-        select: { studentNumber: true },
-      });
+    form.parse(req, async (err, fields, files) => {
+      if (err) {
+        return res.status(500).json({ error: 'Error parsing the form' });
+      }
 
-      // Generate the next student number
-      const nextStudentNumber = lastStudent ? `SN-${parseInt(lastStudent.studentNumber.replace('SN-', '')) + 1}` : 'SN-1000000001';
+      try {
+        const {
+          firstName, middleName, lastName, dob, gender, age, nationality, placeOfBirth,
+          email, phoneNumber, homeAddress, emergencyContactName, emergencyContactPhoneNumber,
+          emergencyContactRelationship, previousSchools, yearOfGraduation, gpa, programId
+        } = fields;
 
-      // Create the student record
-      const newStudent = await prisma.student.create({
-        data: {
-          studentNumber: nextStudentNumber,
-          firstName,
-          middleName,
-          lastName,
-          dob,
-          gender,
-          age,
-          nationality,
-          placeOfBirth,
-          email,
-          phoneNumber,
-          homeAddress,
-          emergencyContactName,
-          emergencyContactPhoneNumber,
-          emergencyContactRelationship,
-          previousSchools,
-          yearOfGraduation,
-          gpa,
-        },
-      });
+        const nextStudentNumber = await generateStudentNumber();
 
-      // Create the student application record
-      const newApplication = await prisma.studentApplication.create({
-        data: {
-          studentId: newStudent.id,
-          programId,
-          status: 'pending',
-        },
-      });
+        const newStudent = await prisma.student.create({
+          data: {
+            studentNumber: nextStudentNumber,
+            firstName: String(firstName),
+            middleName: String(middleName),
+            lastName: String(lastName),
+            dob: new Date(dob),
+            gender: String(gender),
+            age: parseInt(age, 10),
+            nationality: String(nationality),
+            placeOfBirth: String(placeOfBirth),
+            email: String(email),
+            phoneNumber: String(phoneNumber),
+            homeAddress: String(homeAddress),
+            emergencyContactName: String(emergencyContactName),
+            emergencyContactPhoneNumber: String(emergencyContactPhoneNumber),
+            emergencyContactRelationship: String(emergencyContactRelationship),
+            previousSchools: String(previousSchools),
+            yearOfGraduation: parseInt(yearOfGraduation, 10),
+            gpa: parseFloat(gpa),
+          },
+        });
 
-      res.status(201).json({ student: newStudent, application: newApplication });
-    } catch (error) {
-      res.status(500).json({ error: 'Error creating student application' });
-    }
+        const newApplication = await prisma.studentApplication.create({
+            data: {
+              studentId: newStudent.id,
+              programId: parseInt(programId, 10),
+              status: 'pending',
+            },
+          });
+          
+
+        const filesArray = Array.isArray(files) ? files : Object.values(files);
+
+const documentUploads = await Promise.all(
+  filesArray.flat().map(async (file) => {
+    return await prisma.documentUpload.create({
+      data: {
+        studentId: newStudent.id,
+        documentType: file.originalFilename || 'application_document',
+        fileUrl: file.filepath.replace('/uploads/', '/'),
+      },
+    });
+  })
+);
+
+
+        return res.status(201).json({
+          student: newStudent,
+          application: newApplication,
+          documents: documentUploads,
+        });
+      } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Error creating student application' });
+      }
+    });
   }
 
   if (req.method === 'PUT') {
-    // Update the status of a student application (approve or reject)
     try {
       const { id, status, rejectionReason } = req.body;
 
@@ -88,9 +114,11 @@ export default async function handler(req, res) {
         },
       });
 
-      res.status(200).json(updatedApplication);
+      return res.status(200).json(updatedApplication);
     } catch (error) {
-      res.status(500).json({ error: 'Error updating application status' });
+      return res.status(500).json({ error: 'Error updating application status' });
     }
   }
+
+  return res.status(405).json({ error: 'Method Not Allowed' });
 }
